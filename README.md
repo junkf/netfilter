@@ -17,6 +17,5 @@ Files here include versions of:
 SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="aa:bb:cc:dd:ee:ff", NAME="net1"
 SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="ff:ee:dd:cc:bb:aa", NAME="net0" 
 ```
-
 These rules will be applied automatically at boot. Note: When changing the naming scheme, do not forget to update all network-related configuration files and custom systemd unit files to reflect the change.
 

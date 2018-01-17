@@ -4,6 +4,9 @@ IPTABLES=/sbin/iptables
 IP6TABLES=/sbin/ip6tables
 MODPROBE=/sbin/modprobe
 INT_NET=172.16.13.0/24
+INT_INT=net0 # internal network interface
+EXT_INT=net0 # external network interface
+
 
 ### flush existing rules and set chain policy setting to DROP
 echo "[+] Flushing existing iptables rules..."
@@ -36,18 +39,18 @@ $IPTABLES -A INPUT -m state --state INVALID -j DROP
 $IPTABLES -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 ### anti-spoofing rules
-$IPTABLES -A INPUT -i net1 ! -s $INT_NET -j LOG --log-prefix "SPOOFED PKT "
-$IPTABLES -A INPUT -i net1 ! -s $INT_NET -j DROP
+$IPTABLES -A INPUT -i $INT_INT ! -s $INT_NET -j LOG --log-prefix "SPOOFED PKT "
+$IPTABLES -A INPUT -i $INT_INT ! -s $INT_NET -j DROP
 
 
 ### ACCEPT rules
 
 ### allow ssh and ping from internal
-$IPTABLES -A INPUT -i net1 -p tcp -s $INT_NET --dport 22 --syn -m state --state NEW -j ACCEPT
+$IPTABLES -A INPUT -i $INT_INT -p tcp -s $INT_NET --dport 22 --syn -m state --state NEW -j ACCEPT
 $IPTABLES -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
 ### allow dns requests from internal
-$IPTABLES -A INPUT -i net1 -p tcp -s $INT_NET --dport 53 --syn -m state --state NEW -j ACCEPT
-$IPTABLES -A INPUT -i net1 -p udp --dport 53 -m state --state NEW -j ACCEPT
+# $IPTABLES -A INPUT -i $INT_INT -p tcp -s $INT_NET --dport 53 --syn -m state --state NEW -j ACCEPT
+# $IPTABLES -A INPUT -i $INT_INT -p udp --dport 53 -m state --state NEW -j ACCEPT
 
 ### default INPUT LOG rule
 $IPTABLES -A INPUT ! -i lo -j LOG --log-prefix "DROP " --log-ip-options --log-tcp-options
@@ -85,32 +88,16 @@ $IPTABLES -A FORWARD -m state --state INVALID -j DROP
 $IPTABLES -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 ### anti-spoofing rules
-$IPTABLES -A FORWARD -i net1 ! -s $INT_NET -j LOG --log-prefix "SPOOFED PKT "
-$IPTABLES -A FORWARD -i net1 ! -s $INT_NET -j DROP
+$IPTABLES -A FORWARD -i $INT_INT ! -s $INT_NET -j LOG --log-prefix "SPOOFED PKT "
+$IPTABLES -A FORWARD -i $INT_INT ! -s $INT_NET -j DROP
 
 ### ACCEPT rules
-$IPTABLES -A FORWARD -p tcp -i net1 -s $INT_NET --dport 21 --syn -m state --state NEW -j ACCEPT
-$IPTABLES -A FORWARD -p tcp -i net1 -s $INT_NET --dport 22 --syn -m state --state NEW -j ACCEPT
-$IPTABLES -A FORWARD -p tcp -i net1 -s $INT_NET --dport 25 --syn -m state --state NEW -j ACCEPT
-$IPTABLES -A FORWARD -p tcp -i net1 -s $INT_NET --dport 43 --syn -m state --state NEW -j ACCEPT
 $IPTABLES -A FORWARD -p tcp --dport 80 --syn -m state --state NEW -j ACCEPT
 $IPTABLES -A FORWARD -p tcp --dport 443 --syn -m state --state NEW -j ACCEPT
-$IPTABLES -A FORWARD -p tcp -i net1 -s $INT_NET --dport 4321 --syn -m state --state NEW -j ACCEPT
-$IPTABLES -A FORWARD -p udp --dport 53 -m state --state NEW -j ACCEPT
-$IPTABLES -A FORWARD -p icmp --icmp-type echo-request -j ACCEPT
+$IPTABLES -A FORWARD -p tcp -i $INT_INT -s $INT_NET --dport 4321 --syn -m state --state NEW -j ACCEPT
 
 ### default log rule
 $IPTABLES -A FORWARD ! -i lo -j LOG --log-prefix "DROP " --log-ip-options --log-tcp-options
-
-
-###### NAT rules ######
-echo "[+] Setting up NAT rules..."
-$IPTABLES -t nat -A POSTROUTING -s $INT_NET -o net0 -j MASQUERADE
-
-
-###### forwarding ######
-echo "[+] Enabling IP forwarding..."
-echo 1 > /proc/sys/net/ipv4/ip_forward
 
 exit
 ### EOF ###
