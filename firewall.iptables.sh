@@ -48,9 +48,12 @@ $IPTABLES -A INPUT -i $INT_INT ! -s $INT_NET -j DROP
 ### allow ssh and ping from internal
 $IPTABLES -A INPUT -i $INT_INT -p tcp -s $INT_NET --dport 22 --syn -m state --state NEW -j ACCEPT
 $IPTABLES -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
-### allow dns requests from internal
+### allow dns requests from internal network
 $IPTABLES -A INPUT -i $INT_INT -p tcp -s $INT_NET --dport 53 --syn -m state --state NEW -j ACCEPT
 $IPTABLES -A INPUT -i $INT_INT -p udp --dport 53 -m state --state NEW -j ACCEPT
+### allow dns requests on loopback
+$IPTABLES -A INPUT -i lo -p tcp -s $INT_NET --dport 53 --syn -m state --state NEW -j ACCEPT
+$IPTABLES -A INPUT -i lo -p udp --dport 53 -m state --state NEW -j ACCEPT
 
 ### default INPUT LOG rule
 $IPTABLES -A INPUT ! -i lo -j LOG --log-prefix "DROP " --log-ip-options --log-tcp-options
