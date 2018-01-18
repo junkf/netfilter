@@ -111,18 +111,37 @@ $IPTABLES -A FORWARD ! -i lo -j LOG --log-prefix "DROP " --log-ip-options --log-
 
 ######## SQUID INTERCEPTION RULES ######
 
-# IP of proxy box
-SQUIDIP=172.16.13.3
-# port to listen for intercept on squid box
-SQUIDPORT=3128
+# IPv4 address of proxy
+PROXYIP4=172.16.13.3
 
-# $IPTABLES -t nat -A PREROUTING -s $SQUIDIP -p tcp --dport 80 -j ACCEPT 
-# $IPTABLES -t nat -A PREROUTING -s $SQUIDIP -p tcp --dport 443 -j ACCEPT 
+# IPv6 address of proxy
+# PROXYIP6= fe80:dead:beef::10
 
-# $IPTABLES -t nat -A PREROUTING -s 172.16.13.31 -p tcp --dport 80 -j DNAT --to-destination $SQUIDIP:$SQUIDPORT
-# $IPTABLES -t nat -A PREROUTING -s 172.16.13.31 -p tcp --dport 443 -j DNAT --to-destination $SQUIDIP:$SQUIDPORT
+# interface facing clients
+CLIENTIFACE=net1
 
-# $IPTABLES -t mangle -A PREROUTING -p tcp --dport $SQUIDPORT -j DROP
+# arbitrary mark used to route packets by the firewall. May be anything from 1 to 64.
+FWMARK=2
+
+
+# permit Squid box out to the Internet
+$IPTABLES -t mangle -A PREROUTING -p tcp --dport 80 -s $PROXYIP4 -j ACCEPT
+$IPTABLES -t mangle -A PREROUTING -p tcp --dport 443 -s $PROXYIP4 -j ACCEPT
+# ip6tables -t mangle -A PREROUTING -p tcp --dport 80 -s $PROXYIP6 -j ACCEPT
+
+# mark everything else on port 80 to be routed to the Squid box
+$IPTABLES -t mangle -A PREROUTING -i $CLIENTIFACE -p tcp --dport 80 -j MARK --set-mark $FWMARK
+$IPTABLES -t mangle -A PREROUTING -i $CLIENTIFACE -p tcp --dport 443 -j MARK --set-mark $FWMARK
+$IPTABLES -t mangle -A PREROUTING -m mark --mark $FWMARK -j ACCEPT
+# ip6tables -t mangle -A PREROUTING -i $CLIENTIFACE -p tcp --dport 80 -j MARK --set-mark $FWMARK
+# ip6tables -t mangle -A PREROUTING -m mark --mark $FWMARK -j ACCEPT
+
+# NP: Ensure that traffic from inside the network is allowed to loop back inside again.
+$IPTABLES -t filter -A FORWARD -i $CLIENTIFACE -o $CLIENTIFACE -p tcp --dport 80 -j ACCEPT
+$IPTABLES -t filter -A FORWARD -i $CLIENTIFACE -o $CLIENTIFACE -p tcp --dport 443 -j ACCEPT
+# ip6tables -t filter -A FORWARD -i $CLIENTIFACE -o $CLIENTIFACE -p tcp --dport 80 -j ACCEPT
+
+
 
 ###### NAT rules ######
 echo "[+] Setting up NAT rules..."
